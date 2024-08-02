@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  couchdb:
+    image: couchdb:3.3.1
+    container_name: couchdb
+    ports:
+      - "5984:5984"  # Porta padrão do CouchDB
+    environment:
+      COUCHDB_USER: admin
+      COUCHDB_PASSWORD: adminpassword
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+
+  python-app:
+    build: .
+    container_name: python-app
+    depends_on:
+      - couchdb
+    environment:
+      COUCHDB_URL: http://admin:adminpassword@couchdb:5984
+    ports:
+      - "8000:8000"  # Porta da aplicação Python, se necessário
+
+volumes:
+  couchdb_data:
