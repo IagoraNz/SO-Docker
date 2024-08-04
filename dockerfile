@@ -11,5 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copie o restante do código da aplicação
 COPY . .
 
+# Exponha a porta que o Flask usará
+EXPOSE 5000
+
 # Comando para rodar a aplicação
 CMD ["python", "app.py"]

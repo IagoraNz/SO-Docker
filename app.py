@@ -1,140 +1,162 @@
+from flask import Flask, request, redirect, url_for, render_template_string, jsonify
 import couchdb
 import os
 
-def clear():
-    os.system('cls' if os.name == 'nt' else 'clear')
+app = Flask(__name__)
 
-def main():
-    couchdb_url = os.getenv('COUCHDB_URL', 'http://admin:adminpassword@localhost:5984')
-    server = couchdb.Server(couchdb_url)
+# Conectar ao CouchDB
+couchdb_url = os.getenv('COUCHDB_URL', 'http://admin:adminpassword@localhost:5984')
+server = couchdb.Server(couchdb_url)
 
-    while True:
-        clear()
-        print("Docker e CouchDB")
-        print("1. Criar banco de dados")
-        print("2. Inserir documento")
-        print("3. Consultas")
-        print("4. Remover documento")
-        print("5. Remover banco de dados")
-        print("0. Sair")
+@app.route('/')
+def index():
+    print("Acessou a rota /")
+    return render_template_string('''
+        <h1>Docker e CouchDB</h1>
+        <ul>
+            <li><a href="{{ url_for('create_db') }}">Criar banco de dados</a></li>
+            <li><a href="{{ url_for('insert_doc') }}">Inserir documento</a></li>
+            <li><a href="{{ url_for('query_docs') }}">Consultas</a></li>
+            <li><a href="{{ url_for('delete_doc') }}">Remover documento</a></li>
+            <li><a href="{{ url_for('delete_db') }}">Remover banco de dados</a></li>
+        </ul>
+    ''')
+
+@app.route('/create_db', methods=['GET', 'POST'])
+def create_db():
+    if request.method == 'POST':
+        db_name = request.form.get('db_name')
+        if db_name in server:
+            return "Banco de dados já existe"
+        else:
+            server.create(db_name)
+            return f'Banco de dados {db_name} criado com sucesso'
+    return '''
+        <h1>Criar Banco de Dados</h1>
+        <form method="post">
+            Nome do banco de dados: <input type="text" name="db_name">
+            <input type="submit" value="Criar">
+        </form>
+    '''
+
+@app.route('/insert_doc', methods=['GET', 'POST'])
+def insert_doc():
+    if request.method == 'POST':
+        db_name = request.form.get('db_name')
+        if db_name not in server:
+            return "Banco de dados não encontrado"
+        doc_id = request.form.get('doc_id')
+        tipo = request.form.get('tipo')
+        mensagem = request.form.get('mensagem')
+        doc = {
+            '_id': doc_id,
+            'tipo': tipo,
+            'message': mensagem
+        }
+        db = server[db_name]
         try:
-            opcao = int(input("Escolha uma opção: "))
-        except ValueError:
-            print("Opção inválida, tente novamente.")
-            continue
+            db.save(doc)
+            return f'Documento salvo com ID: {doc_id}'
+        except couchdb.http.ResourceConflict:
+            return f'Erro: Documento com ID "{doc_id}" já existe.'
+    return '''
+        <h1>Inserir Documento</h1>
+        <form method="post">
+            Nome do banco de dados: <input type="text" name="db_name"><br>
+            ID do documento: <input type="text" name="doc_id"><br>
+            Tipo: <input type="text" name="tipo"><br>
+            Mensagem: <input type="text" name="mensagem"><br>
+            <input type="submit" value="Inserir">
+        </form>
+    '''
 
-        if opcao == 1:
-            db_name = input("Digite o nome do banco de dados: ")
-            if db_name in server:
-                print("Banco de dados já existe")
-            else:
-                db = server.create(db_name)
-                print(f'Banco de dados {db_name} criado com sucesso')
-        elif opcao == 2:
-            if len(server) == 0:
-                print("Não existe nenhum banco de dados")
-                continue
-            db_name = input("Digite o nome do banco de dados: ")
-            if db_name not in server:
-                print("Banco de dados não encontrado")
-                continue
-
-            doc_id = input("Digite o ID do documento: ")
-            tipo = input("Digite o tipo do documento: ")
-            mensagem = input("Digite a mensagem do documento: ")
-
-            doc = {
-                '_id': doc_id,
-                'tipo': tipo,
-                'message': mensagem
-            }
-            db = server[db_name]
-            
-            try:
-                doc_id, doc_rev = db.save(doc)
-                print(f'Documento salvo com ID: {doc_id}')
-            except couchdb.http.ResourceConflict:
-                print(f'Erro: Documento com ID "{doc_id}" já existe.')
-        elif opcao == 3:
-            if len(server) == 0:
-                print("Não existe nenhum banco de dados")
-                continue
-            db_name = input("Digite o nome do banco de dados: ")
-            if db_name not in server:
-                print("Banco de dados não encontrado")
-                continue
-
-            print("\nConsultar por: ")
-            print("1. ID")
-            print("2. Tipo")
-            print("3. Mensagem")
-            print("4. Todos")
-            try:
-                consulta = int(input("Escolha uma opção: "))
-            except ValueError:
-                print("Opção inválida, tente novamente.")
-                continue
-
-            db = server[db_name]
-            if consulta == 1:
-                doc_id = input("Digite o ID do documento: ")
-                try:
-                    doc = db[doc_id]
-                    print(f'Documento encontrado: {doc}')
-                except couchdb.http.ResourceNotFound:
-                    print(f'Erro: Documento com ID "{doc_id}" não encontrado.')
-            elif consulta == 2:
-                tipo = input("Digite o tipo do documento: ")
-                for doc_id in db:
-                    doc = db[doc_id]
-                    if doc['tipo'] == tipo:
-                        print(f'Documento encontrado: {doc}')
-            elif consulta == 3:
-                mensagem = input("Digite a mensagem do documento: ")
-                for doc_id in db:
-                    doc = db[doc_id]
-                    if doc['message'] == mensagem:
-                        print(f'Documento encontrado: {doc}')
-            elif consulta == 4:
-                for doc_id in db:
-                    doc = db[doc_id]
-                    print(f'Documento encontrado: {doc}')
-        elif opcao == 4:
-            if len(server) == 0:
-                print("Não existe nenhum banco de dados")
-                continue
-            db_name = input("Digite o nome do banco de dados: ")
-            if db_name not in server:
-                print("Banco de dados não encontrado")
-                continue
-
-            doc_id = input("Digite o ID do documento: ")
-            db = server[db_name]
+@app.route('/query_docs', methods=['GET', 'POST'])
+def query_docs():
+    if request.method == 'POST':
+        db_name = request.form.get('db_name')
+        if db_name not in server:
+            return "Banco de dados não encontrado"
+        consulta = request.form.get('consulta')
+        db = server[db_name]
+        result = []
+        if consulta == '1':
+            doc_id = request.form.get('doc_id')
             try:
                 doc = db[doc_id]
-                db.delete(doc)
-                print(f'Documento com ID "{doc_id}" removido com sucesso.')
+                result.append(doc)
             except couchdb.http.ResourceNotFound:
-                print(f'Erro: Documento com ID "{doc_id}" não encontrado.')
-        elif opcao == 5:
-            if len(server) == 0:
-                print("Não existe nenhum banco de dados")
-                continue
-            db_name = input("Digite o nome do banco de dados: ")
-            if db_name not in server:
-                print("Banco de dados não encontrado")
-                continue  
-            try:
-                server.delete(db_name)
-                print(f'Banco de dados "{db_name}" removido com sucesso.')
-            except couchdb.http.ResourceNotFound:
-                print(f'Erro: Banco de dados "{db_name}" não encontrado.')
-        elif opcao == 0:
-            print("Saindo...")
-            break
-        else:
-            print("Opção inválida, tente novamente.")
-        input("Pressione Enter para continuar...")
+                result.append(f'Erro: Documento com ID "{doc_id}" não encontrado.')
+        elif consulta == '2':
+            tipo = request.form.get('tipo')
+            for doc_id in db:
+                doc = db[doc_id]
+                if doc['tipo'] == tipo:
+                    result.append(doc)
+        elif consulta == '3':
+            mensagem = request.form.get('mensagem')
+            for doc_id in db:
+                doc = db[doc_id]
+                if doc['message'] == mensagem:
+                    result.append(doc)
+        elif consulta == '4':
+            for doc_id in db:
+                doc = db[doc_id]
+                result.append(doc)
+        return jsonify(result)
+    return '''
+        <h1>Consultar Documentos</h1>
+        <form method="post">
+            Nome do banco de dados: <input type="text" name="db_name"><br>
+            Consultar por: <br>
+            <input type="radio" name="consulta" value="1"> ID<br>
+            <input type="radio" name="consulta" value="2"> Tipo<br>
+            <input type="radio" name="consulta" value="3"> Mensagem<br>
+            <input type="radio" name="consulta" value="4"> Todos<br>
+            <input type="submit" value="Consultar">
+        </form>
+    '''
+
+@app.route('/delete_doc', methods=['GET', 'POST'])
+def delete_doc():
+    if request.method == 'POST':
+        db_name = request.form.get('db_name')
+        if db_name not in server:
+            return "Banco de dados não encontrado"
+        doc_id = request.form.get('doc_id')
+        db = server[db_name]
+        try:
+            doc = db[doc_id]
+            db.delete(doc)
+            return f'Documento com ID "{doc_id}" removido com sucesso.'
+        except couchdb.http.ResourceNotFound:
+            return f'Erro: Documento com ID "{doc_id}" não encontrado.'
+    return '''
+        <h1>Remover Documento</h1>
+        <form method="post">
+            Nome do banco de dados: <input type="text" name="db_name"><br>
+            ID do documento: <input type="text" name="doc_id"><br>
+            <input type="submit" value="Remover">
+        </form>
+    '''
+
+@app.route('/delete_db', methods=['GET', 'POST'])
+def delete_db():
+    if request.method == 'POST':
+        db_name = request.form.get('db_name')
+        if db_name not in server:
+            return "Banco de dados não encontrado"
+        try:
+            server.delete(db_name)
+            return f'Banco de dados "{db_name}" removido com sucesso.'
+        except couchdb.http.ResourceNotFound:
+            return f'Erro: Banco de dados "{db_name}" não encontrado.'
+    return '''
+        <h1>Remover Banco de Dados</h1>
+        <form method="post">
+            Nome do banco de dados: <input type="text" name="db_name"><br>
+            <input type="submit" value="Remover">
+        </form>
+    '''
 
 if __name__ == '__main__':
-    main()
+    app.run(host='0.0.0.0', port=5000, debug=True)

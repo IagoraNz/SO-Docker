@@ -9,11 +9,11 @@ services:
     environment:
       COUCHDB_USER: admin
       COUCHDB_PASSWORD: adminpassword
-    volumes:
-      - couchdb_data:/opt/couchdb/data
+    networks:
+      - project_so
 
   python-app:
-    build: .
+    image: francinaldosb/python-app:latest
     container_name: python-app
     depends_on:
       - couchdb
@@ -21,6 +21,9 @@ services:
       COUCHDB_URL: http://admin:adminpassword@couchdb:5984
     ports:
       - "5000:5000"  # Porta da aplicação Python, se necessário
+    networks:
+      - project_so
 
-volumes:
-  couchdb_data:
+networks:
+  project_so:
+    driver: overlay
