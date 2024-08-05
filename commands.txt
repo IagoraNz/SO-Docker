@@ -1,0 +1,34 @@
+# Build da imagem python
+sudo docker build -t name-image:latest .
+
+# Login no docker hub
+
+docker login
+
+# adicionar a imagem no docker hub
+
+docker tag <name_image>:latest <your_registry>/<name_image>:latest
+docker push <your_registry>/<name_image>:latest
+
+# Iniciando Docker Swarm local
+docker swarm init 
+
+ou
+
+docker swarm init --advertise-addr <your-Ip>
+
+# Deploy
+
+docker stack deploy --compose-file docker-stack.yml SO
+
+# Verificar serviços
+
+docker service ls
+
+# Caso de falha com network
+
+docker network rm project-network
+
+# reload docker
+
+sudo service docker restart 
