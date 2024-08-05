@@ -79,38 +79,58 @@ def query_docs():
         consulta = request.form.get('consulta')
         db = server[db_name]
         result = []
+
         if consulta == '1':
             doc_id = request.form.get('doc_id')
-            try:
-                doc = db[doc_id]
-                result.append(doc)
-            except couchdb.http.ResourceNotFound:
-                result.append(f'Erro: Documento com ID "{doc_id}" não encontrado.')
+            if doc_id:
+                try:
+                    doc = db[doc_id]
+                    result.append(doc)
+                except couchdb.http.ResourceNotFound:
+                    result.append(f'Erro: Documento com ID "{doc_id}" não encontrado.')
+            else:
+                return 'Erro: ID do documento não fornecido.'
+
         elif consulta == '2':
             tipo = request.form.get('tipo')
-            for doc_id in db:
-                doc = db[doc_id]
-                if doc['tipo'] == tipo:
-                    result.append(doc)
+            tipo_value = request.form.get('tipo_value')
+            if tipo and tipo_value:
+                for doc_id in db:
+                    doc = db[doc_id]
+                    if doc.get('tipo') == tipo_value:
+                        result.append(doc)
+            else:
+                return 'Erro: Tipo ou valor do tipo não fornecidos.'
+
         elif consulta == '3':
             mensagem = request.form.get('mensagem')
-            for doc_id in db:
-                doc = db[doc_id]
-                if doc['message'] == mensagem:
-                    result.append(doc)
+            mensagem_value = request.form.get('mensagem_value')
+            if mensagem and mensagem_value:
+                for doc_id in db:
+                    doc = db[doc_id]
+                    if doc.get('message') == mensagem_value:
+                        result.append(doc)
+            else:
+                return 'Erro: Mensagem ou valor da mensagem não fornecidos.'
+
         elif consulta == '4':
             for doc_id in db:
                 doc = db[doc_id]
                 result.append(doc)
+
         return jsonify(result)
+
     return '''
         <h1>Consultar Documentos</h1>
         <form method="post">
             Nome do banco de dados: <input type="text" name="db_name"><br>
             Consultar por: <br>
-            <input type="radio" name="consulta" value="1"> ID<br>
-            <input type="radio" name="consulta" value="2"> Tipo<br>
-            <input type="radio" name="consulta" value="3"> Mensagem<br>
+            <input type="radio" name="consulta" value="1"> ID
+            <input type="text" name="doc_id"><br>
+            <input type="radio" name="consulta" value="2"> Tipo
+            <input type="text" name="tipo_value"><br>
+            <input type="radio" name="consulta" value="3"> Mensagem
+            <input type="text" name="mensagem_value"><br>
             <input type="radio" name="consulta" value="4"> Todos<br>
             <input type="submit" value="Consultar">
         </form>
